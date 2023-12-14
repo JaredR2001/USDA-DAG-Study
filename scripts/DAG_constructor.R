@@ -9,12 +9,17 @@ library(penalized)
 # Variables to set are all here
 ###############################
 useMarkers = TRUE
+
+# Input data
 InputTierDataFileName = "tiers_list1.csv"
 InputTraitDataFileName <- "data_Flood.csv" 
 InputMarkerDataFileName <- "data_markers.csv" 
+
+# Output files
 outTiffFile <- "m.Flood_wMarkers_ls1.tiff"
 nodeListFile <- "Flooded_wMarkers_nodeList.csv"
 droppedMarkerFile <- "droppedMarkers.csv"
+
 markerCorrThresh <- 0.9999 #only perfect correlations removed from markers
 alphaval <- 0.01
 useRidge <- FALSE
@@ -359,16 +364,16 @@ arcs <- averaged2[["arcs"]]
 write.csv(arcs, nodeListFile, row.names = FALSE)
 
 ## Lets try to store dropped or unused markers (unused as a way to classify markers dropped AFTER deup)
+if (useMarkers == TRUE) {
 # Place to store dropped markers
 unused_markers <- c()
-
 
 # Separate dataframe for "unused" markers
 unused_markers <- setdiff(original_markers, averaged2$arcs) # We'll just compare markers from the original set to the nodes present in the DAG 
 unused_markers_df <- data.frame(UnusedMarkers = unused_markers)
 
 write.csv(unused_markers_df, "unusedMarkers.csv", row.names = FALSE)
-
+}
 
 # To be added...First attempt at marginal graphs
 # library(gRain)
