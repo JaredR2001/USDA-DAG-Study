@@ -9,6 +9,7 @@ library(penalized)
 # Variables to set are all here
 ###############################
 useMarkers = TRUE
+displaySaveData = FALSE
 
 # Input data
 InputTierDataFileName = "tiers_list1.csv"
@@ -298,6 +299,8 @@ tiff(outTiffFile, height = 35, width = 35, units = 'cm', compression = "lzw", re
 
 # Find correlations between variables
 trait_correlations <- cor(inputdata[, traits], use = "pairwise.complete.obs")
+marker_correlations <- cor(inputdata[, traits], inputdata[ , markerdata], method = "spearman")
+
 #palette <- colorRampPalette(c("ivory", "ivory4"))(100)
 negative_palette <- colorRampPalette(c("#FFBEB2", "#AE123A"))(100)
 positive_palette <- colorRampPalette(c("#B9DDF1", "#2A5783"))(100)
@@ -365,14 +368,14 @@ write.csv(arcs, nodeListFile, row.names = FALSE)
 
 ## Lets try to store dropped or unused markers (unused as a way to classify markers dropped AFTER deup)
 if (useMarkers == TRUE) {
-# Place to store dropped markers
-unused_markers <- c()
+  # Place to store dropped markers
+  unused_markers <- c()
 
-# Separate dataframe for "unused" markers
-unused_markers <- setdiff(original_markers, averaged2$arcs) # We'll just compare markers from the original set to the nodes present in the DAG 
-unused_markers_df <- data.frame(UnusedMarkers = unused_markers)
+  # Separate dataframe for "unused" markers
+  unused_markers <- setdiff(original_markers, averaged2$arcs) # We'll just compare markers from the original set to the nodes present in the DAG 
+  unused_markers_df <- data.frame(UnusedMarkers = unused_markers)
 
-write.csv(unused_markers_df, "unusedMarkers.csv", row.names = FALSE)
+  write.csv(unused_markers_df, "unusedMarkers.csv", row.names = FALSE)
 }
 
 # To be added...First attempt at marginal graphs
@@ -380,3 +383,11 @@ write.csv(unused_markers_df, "unusedMarkers.csv", row.names = FALSE)
 # fitted_network <- pr001[[1]]$models[[1]]
 # graphviz.chart(fitted_network, node = "LfNu")
 # tiff(outTiffFile, height = 50, width = 50, units = 'cm', compression = 'lzw', res = 1080)
+
+# To view the save file. Will be a .rds file ext.
+if (displaySaveData == TRUE) {
+  filename <- file.choose()
+  saveData <- readRDS(filename)
+  saveData
+}
+
