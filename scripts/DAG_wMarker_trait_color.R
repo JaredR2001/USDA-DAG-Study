@@ -8,19 +8,18 @@ library(penalized)
 
 # Variables to set are all here
 ###############################
+# Set data
 useMarkers = TRUE
-displaySaveData = FALSE
-
-# Input data
 InputTierDataFileName = "tiers_list1.csv"
 InputTraitDataFileName <- "data_Flood.csv" 
 InputMarkerDataFileName <- "data_markers.csv" 
 
 # Output files
-outTiffFile <- "m.Flood_wMarkers_ls1.tiff"
-nodeListFile <- "Flooded_wMarkers_nodeList.csv"
-droppedMarkerFile <- "droppedMarkers.csv"
+outTiffFile <- "F_wMarkers_ls1.tiff"
+nodeListFile <- "F_wMarkers_Nodepairsls1.csv"
+unusedMarkerFile <- "F_ls1_droppedMarkers.csv"
 
+# Graph appearance
 markerCorrThresh <- 0.9999 #only perfect correlations removed from markers
 alphaval <- 0.01
 useRidge <- FALSE
@@ -29,7 +28,7 @@ kfoldruns <- 10
 graphLayout <- "dot" #other options: neato, fdp, twopi, circo
 graphMinThresh <- 0.5
 #graphThresh <- 0.6
-graphThresh <- 0.75
+graphThresh <- 0.70
 markerInteract <- FALSE #allow marker to marker edges
 saveDAGfile <- "saveDAG.rds" #filename of saved run
 relearnDAG <- TRUE #set to false to skip and use a saved run
@@ -59,7 +58,6 @@ print(InputTierDataFileName.md5) #put in README metadata file
 
 # Data preprocessing. Drop redundant or highly correlated traits. Set variable type (numeric, factor, ect.).
 inputtraitdata <- read.csv(InputTraitDataFileName) %>%
-  mutate_at("Genotype", str_replace, "TIL:", "") %>%
   select(-DaysToScdryT_100Is100, -DHD.j, -Node_BottomT, -Diff_LfAge_minus_N1T, -TN_sixwk, -RB_per_StemNu, -SB_per_StemNu, -RBbySB_ratio, -Node_UppermostT, -NeverGot_ScdryT, -Ht_Lftip_cm, -TotalRtLngth_cm, -ThckRtNu_sum, -Sum_ThickRoot_branches, -B_Proportion_LatB_over_total_Length, -TotRt_SA_cm2, -TotRt_Vol_cm3, -B_LatRtSA, -B_ThickRtSA, -B_ProportionSA_from_Lats, -B_LatRt_vol, -B_ThickRt_vol, -B_Proportion_Vol_is_Lat, -C_thinRtLngthSum_cm, -C_Proportion_Thin_over_total_Length, -C_thinRtSA, -GrowthRt, -TTill, -PctVegTill, -ISdWtPrPan, -SdDenPrPan, -SdCtPerPlt, -PltSdPerPan, -TYldPerPan, -TYldPerTill, -GrainLWR, -PanStress, -LeafStress) %>%
   rename(NodeFirstT = Node_FirstT) %>%
   rename(Ht_collar = Ht_collar_cm) %>%
@@ -79,10 +77,8 @@ inputtraitdata <- read.csv(InputTraitDataFileName) %>%
                   round(4))
   ) 
 
-traitdata <- na.omit(inputtraitdata)
 
 markerdata <- read.csv(InputMarkerDataFileName)
-#markerdata_cleaned <- markerdata
 
 # Store the original marker dataset
 original_markers <- names(markerdata)[-1]
@@ -91,12 +87,13 @@ original_markers <- names(markerdata)[-1]
 markerdedup <- markerdata[,-1] %>%
   mutate_all(as.numeric) %>%
   dedup(threshold = markerCorrThresh, debug = TRUE)
+
 markerdata <- cbind(Genotype=markerdata[,1],markerdedup)
 
 #merge traits and markers
 inputdata <- inputtraitdata %>% 
   inner_join(markerdata, by="Genotype") %>%
-  select(-Genotype)
+  dplyr::select(-Genotype)
 
 #get tier lists
 tierdata <- read.csv(InputTierDataFileName)
@@ -302,8 +299,6 @@ tiff(outTiffFile, height = 35, width = 35, units = 'cm', compression = "lzw", re
 
 # Find correlations between variables
 trait_correlations <- cor(inputdata[, traits], use = "pairwise.complete.obs")
-marker_correlations <- cor(inputdata, method = "spearman")
-
 #palette <- colorRampPalette(c("ivory", "ivory4"))(100)
 negative_palette <- colorRampPalette(c("#FFBEB2", "#AE123A"))(100)
 positive_palette <- colorRampPalette(c("#B9DDF1", "#2A5783"))(100)
@@ -367,19 +362,49 @@ dev.off()
 
 # Store and save relevant nodes, including markers 
 arcs <- averaged2[["arcs"]]
-write.csv(arcs, nodeListFile, row.names = FALSE)
+nodeList <- as.data.frame(arcs)
+# Renaming the columns
+colnames(nodeList) <- c("From", "To")
+
+# Getting correlation values for relevant node pairs
+correlation_values <- sapply(1:nrow(nodeList), function(i) {
+  from_node <- nodeList$From[i]
+  to_node <- nodeList$To[i]
+  
+  # Check to see if nodes are markers
+  if (from_node %in% Markers || to_node %in%  Markers) {
+    return(NA)
+  } else {
+    trait_correlations[nodeList$From[i], nodeList$To[i]]
+  }
+})
+nodeList$Correlation <- correlation_values
+
+write.csv(nodeList, nodeListFile, row.names = FALSE)
 
 ## Lets try to store dropped or unused markers (unused as a way to classify markers dropped AFTER deup)
 if (useMarkers == TRUE) {
   # Place to store dropped markers
   unused_markers <- c()
-
+  
   # Separate dataframe for "unused" markers
   unused_markers <- setdiff(original_markers, averaged2$arcs) # We'll just compare markers from the original set to the nodes present in the DAG 
   unused_markers_df <- data.frame(UnusedMarkers = unused_markers)
-
-  write.csv(unused_markers_df, "unusedMarkers.csv", row.names = FALSE)
+  
+  write.csv(unused_markers_df, unusedMarkerFile, row.names = FALSE)
 }
+
+# library(ltm)
+# cor_matrix <- matrix(NA, nrow = length(Markers), ncol = length(traits))
+# rownames(cor_matrix) <- Markers
+# colnames(cor_matrix) <- traits
+# 
+# for (i in seq_along(Markers)) {
+#   for (j in seq_along(traits)) {
+#     #cor_matrix[marker, trait] <- polycor::biseral.cor(inputdata[[marker]], inputdata[[traits]])
+#     cor_matrix[i, j] <- biserial.cor(inputdata[[traits[j]]], inputdata[[Markers[i]]])
+#   }
+# }
 
 # To be added...First attempt at marginal graphs
 # library(gRain)
@@ -387,14 +412,4 @@ if (useMarkers == TRUE) {
 # graphviz.chart(fitted_network, node = "LfNu")
 # tiff(outTiffFile, height = 50, width = 50, units = 'cm', compression = 'lzw', res = 1080)
 
-# To view the save file. Will be a .rds file ext.
-if (displaySaveData == TRUE) {
-  filename <- file.choose()
-  saveData <- readRDS(filename)
-  saveData
-}
-
-library(glmnet)
-temp_data <- merge(traitdata, markerdata, by = "Genotype", all = FALSE)
-marker_and_trait <- temp_data[, c("traitdata", "markerdata")]
-lasso.models <- cv.glmnet(na.omit(marker_and_trait), as.matrix(traitdata))
+write.csv(inputdata, "inputdata_Flood.csv")
