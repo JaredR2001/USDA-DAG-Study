@@ -8,16 +8,91 @@ library(penalized)
 
 # Variables to set are all here
 ###############################
+# Raw data setup
+#Agronomic_filename <- "TILs_all_agronomic.csv"
+#Ionomic_filename <- "TILIonomicsData.csv"
+#winRhizo_filename <- "winRhizo_data.csv"
+#Rootstudy_filename <- "TILs_6wk_TN_RB_SBetc_Data&ANOVA_UPDATED.csv"
+Marker_filename <- "data_markers.csv"
+#RawDataFileName <- "TILs_all_agronomic.csv"
+
+# Agronomic_filename.md5 <- md5sum(Agronomic_filename)
+# print(Agronomic_filename.md5) #put in README metadata file
+# Ionomic_filename.md5 <- md5sum(Ionomic_filename)
+# print(Ionomic_filename.md5) #put in README metadata file
+# winRhizo_filename.md5 <- md5sum(winRhizo_filename)
+# print(winRhizo_filename.md5) #put in README metadata file
+# Rootstudy_filename.md5 <- md5sum(Rootstudy_filename)
+# print(Rootstudy_filename.md5) #put in README metadata file
+
+Marker_filename.md5 <- md5sum(Marker_filename)
+print(Marker_filename.md5) #put in README metadata file
+# RawDataFile.md5 <- md5sum(RawDataFileName)
+# print(RawDataFile.md5)
+
+
+# Depending on the RAW file, needs differing preprocessing
+# agronomic_data <- read.csv(RawDataFileName) %>%
+#   mutate(Genotype = as.factor(Genotype))
+# ionomic_data <- read.csv(RawDataFileName) %>%
+#   mutate_all(trimws) %>%
+#   mutate(Genotype = as.factor(Genotype)) %>%
+#   mutate(Irrigation_Treatment = str_replace(Irrigation_Treatment, "flooded", "Flooded")) %>%
+#   select(-RepNo, -Rep.Or.Planting.year, -YEAR, -REP_Irig_nu, -FIELD_COORDINATE_Plot) %>%
+#   mutate(across(DHD.j:Zn, as.numeric))
+# winRhizo_data <- read.csv(RawDataFileName) %>%
+#   mutate(Genotype = as.factor(Genotype)) %>%
+#   mutate_at("Genotype", str_replace, "TIL:", "") %>%
+#   rename(LatRtAvLngth = LatRtAvLngth_RtSystm_mm) %>%
+#   rename(LatRtDensity_Max = LatRtDensity_Max_Subsection) %>%
+#   rename(CrownRts = Nu_Post.embryonic_CrownRts) %>%
+#   rename(Upper_RtBranches = Nu_Seed.proximal_RtBranches) %>%
+#   rename(Mid_RtBranches = Nu_Mid.rt_Branches) %>%
+#   rename(Lower_RtBranches = Nu_TerminalRt_Branches) %>%
+#   rename(LatRtLngth_sum = B_LatLngthSum_cm) %>%
+#   rename(CoarseRtLngth_sum = B_ThickLngth_bySubtr_cm) %>%
+#   rename(AvgRtDiam_RtSystm = TotRt_AvgDiam_cm)
+# root_data <- read.csv(RawDataFileName) %>%
+#   select(-DaysToScdryT_100Is100) %>%
+#   mutate(Genotype = as.factor(Genotype)) %>%
+#   mutate_at("Genotype", str_replace, "TIL:", "") %>%
+#   rename(NodeFirstT = Node_FirstT) %>%
+#   rename(Ht_collar = Ht_collar_cm) %>%
+#   rename(LeafLength = LfLngth_TipHt_Minus_CollarHt)
+
+marker_data <- read.csv(Marker_filename)
+
+combined_data <- read.csv("combinedRawData0.csv")
+CombinedData.md5 <- md5sum("combinedRawData0.csv")
+print(CombinedData.md5)
+combined_data <- combined_data %>%
+  mutate(Irrigation_Treatment = as.factor(Irrigation_Treatment))
+
+
+Unflood_data <- filter(combined_data, Irrigation_Treatment == "UnFlooded") %>%
+  select(-Irrigation_Treatment) %>%
+  mutate(across(DHD.j:LeafLength, as.numeric)) %>%
+  mutate(Genotype = as.factor(Genotype))
+Flood_data <- filter(combined_data, Irrigation_Treatment == "Flooded") %>%
+  select(-Irrigation_Treatment) %>%
+  mutate(across(DHD.j:LeafLength, as.numeric)) %>%
+  mutate(Genotype = as.factor(Genotype))
+
+
+
+####
 # Set data
 useMarkers = TRUE
+#InputRawDataFileName = "TILIonomicsData.csv"
 InputTierDataFileName = "tiers_list1.csv"
-InputTraitDataFileName <- "data_Flood.csv" 
-InputMarkerDataFileName <- "data_markers.csv" 
+InputTraitDataFileName <- "data_Unflood.csv" 
+InputMarkerDataFileName <- "data_markers.csv"  
 
 # Output files
-outTiffFile <- "F_wMarkers_ls1.tiff"
-nodeListFile <- "F_wMarkers_Nodepairsls1.csv"
-unusedMarkerFile <- "F_ls1_droppedMarkers.csv"
+outTiffFile <- "Unflood_wMarkers_ls1.tiff"
+nodeListFile <- "Unflood_wMarkersNodepairs_ls1.csv"
+unusedMarkerFile <- "Unflood_wMarkers_droppedMarkers_ls1.csv"
+PopSizeFile <- "Unflood_wMarkers_populations_ls1.csv"
 
 # Graph appearance
 markerCorrThresh <- 0.9999 #only perfect correlations removed from markers
@@ -28,7 +103,7 @@ kfoldruns <- 10
 graphLayout <- "dot" #other options: neato, fdp, twopi, circo
 graphMinThresh <- 0.5
 #graphThresh <- 0.6
-graphThresh <- 0.70
+graphThresh <- 0.75
 markerInteract <- FALSE #allow marker to marker edges
 saveDAGfile <- "saveDAG.rds" #filename of saved run
 relearnDAG <- TRUE #set to false to skip and use a saved run
@@ -55,6 +130,9 @@ InputMarkerDataFileName.md5 <- md5sum(InputMarkerDataFileName)
 print(InputMarkerDataFileName.md5) #put in README metadata file
 InputTierDataFileName.md5 <- md5sum(InputTierDataFileName)
 print(InputTierDataFileName.md5) #put in README metadata file
+#InputRawDataFileName.md5 <- md5sum(InputRawDataFileName)
+#print(InputRawDataFileName.md5)
+
 
 # Data preprocessing. Drop redundant or highly correlated traits. Set variable type (numeric, factor, ect.).
 inputtraitdata <- read.csv(InputTraitDataFileName) %>%
@@ -292,6 +370,12 @@ averaged2 = bnlearn::subgraph(averaged, relevant.nodes)
 strength2 = strength[(strength$from %in% relevant.nodes) &
                        (strength$to %in% relevant.nodes), ]
 attr(strength2, "nodes") = relevant.nodes
+# Store and save relevant nodes, including markers 
+arcs <- averaged2[["arcs"]]
+nodeList <- as.data.frame(arcs)
+# Renaming the columns
+colnames(nodeList) <- c("From", "To")
+
 
 gR = strength.plot(averaged2, strength2, shape = "ellipse", layout = graphLayout, threshold = graphThresh, groups=traittiers, render=FALSE)
 
@@ -302,71 +386,17 @@ trait_correlations <- cor(inputdata[, traits], use = "pairwise.complete.obs")
 #palette <- colorRampPalette(c("ivory", "ivory4"))(100)
 negative_palette <- colorRampPalette(c("#FFBEB2", "#AE123A"))(100)
 positive_palette <- colorRampPalette(c("#B9DDF1", "#2A5783"))(100)
+lemont_palette <-  "#8B4513"
+teqing_palette <- "#458B00"
 
-# Set the number of colors based number of observed strengths
-arc_colors <- rep(NA, nrow(strength2))
-# Determine colors of arcs as it corresponds to the calculated correlations
-for(i in 1:nrow(strength2)) {
-  arc_from <- strength2$from[i]
-  arc_to <- strength2$to[i]
-  
-  if (arc_from %in% traits && arc_to %in% traits){
-    correlation_value <- trait_correlations[arc_from, arc_to]
-    #normalized_value <- (correlation_value +1) / 2
-    if(correlation_value > 0){
-      arc_colors[i] <- positive_palette[ceiling(correlation_value * 100)]
-    } else if (correlation_value < 0){
-      arc_colors[i] <- negative_palette[ceiling(-correlation_value * 100)]
-    } else {
-      arc_colors[i] <- "white"
-    }
-    
-    #arc_colors[i] <- palette[ceiling(normalized_value * 100)]
-  } else {
-    if (arc_from %in% Markers || arc_to %in% Markers){
-      arc_colors[i] <- "darkgreen"
-    }
-  }
-}
 
-# Add the colors to the DAG
-for(i in 1:nrow(strength2)) {
-  arc_from <- strength2$from[i]
-  arc_to <- strength2$to[i]
-  arc_name <- as.character(interaction(arc_from, arc_to, sep = "~"))
-  edgeRenderInfo(gR)$col[arc_name] <- arc_colors[i]
-}
+# # Store and save relevant nodes, including markers 
+# arcs <- averaged2[["arcs"]]
+# nodeList <- as.data.frame(arcs)
+# # Renaming the columns
+# colnames(nodeList) <- c("From", "To")
 
-nodeRenderInfo(gR)$fill = "lightblue"
-nodeRenderInfo(gR)$col = "darkblue"
-nodeRenderInfo(gR)$fill[Markers] = "orange" # For markers 
-nodeRenderInfo(gR)$col[traits] = "black"
-
-for (i in 1:length(tiercolors)) {
-  nodeRenderInfo(gR)$fill[traittiers[[i]]] = tiercolors[i]
-}
-# nodeRenderInfo(gR)$width <- 40
-# nodeRenderInfo(gR)$height <- 40
-# nodeRenderInfo(gR)$fontsize <- 25
-
-a = arcs(bnlearn::subgraph(averaged2, relevant.nodes))
-#a = as.character(interaction(a[, "from"], a[, "to"], sep = "~"))
-
-#edgeRenderInfo(gR)$col = "grey"
-#edgeRenderInfo(gR)$col[a] = "darkgreen"
-renderGraph(gR)
-dev.off()
-
-# To see the black list that was applied
-#write.csv(blacklisted, "C:/Users/jared.richardson/Desktop/USDASummer/R_Scripts/Bayesian Models/fourStudy_blacklisttable_Flood_09-12.csv")
-
-# Store and save relevant nodes, including markers 
-arcs <- averaged2[["arcs"]]
-nodeList <- as.data.frame(arcs)
-# Renaming the columns
-colnames(nodeList) <- c("From", "To")
-
-# Getting correlation values for relevant node pairs
+### Getting correlation values for relevant node pairs
 correlation_values <- sapply(1:nrow(nodeList), function(i) {
   from_node <- nodeList$From[i]
   to_node <- nodeList$To[i]
@@ -379,8 +409,164 @@ correlation_values <- sapply(1:nrow(nodeList), function(i) {
   }
 })
 nodeList$Correlation <- correlation_values
+###############################################################################
+# This is were the calculations for marker-trait edge values will happen
+nodepair_data <- nodeList %>%
+  filter(grepl("^S[0-9]", From))
 
-write.csv(nodeList, nodeListFile, row.names = FALSE)
+rel_Markers <- nodepair_data[, 1]
+rel_Traits <- nodepair_data[, 2]
+
+Markers.df <- markerdata %>%
+  na.omit() %>%
+  select(Genotype, rel_Markers) %>%
+  mutate(Genotype = as.factor(Genotype))
+
+#Flood_wMarkers <- left_join(Flood_data, Markers.df, by = "Genotype")
+Data_wMarkers <- Unflood_data %>%
+  merge(Markers.df, by="Genotype")
+# Data_wMarkers <- Unflood_data %>%
+#   inner_join(Markers.df, by="Genotype")
+# Data_wMarkers <- winRhizo_data %>%
+#   inner_join(Markers.df, by = "Genotype")
+# Data_wMarkers <- root_data %>%
+#   inner_join(Markers.df, by = "Genotype")
+# Data_wMarkers <- agronomic_data %>%
+#   inner_join(Markers.df, by = "Genotype")
+# Data_wMarkers <- Unflood_data %>%
+#   inner_join(Markers.df, by = "Genotype")
+
+
+# Define function to extract data from only the relevant corresponding marker-trait pairs
+rel_variables <- function(df, nodepair_data) {
+  rel_dataframes <- list()
+  rel_cols <- c("Genotype") # Keep first column genotype
+  
+  # Go through each row of the nodepair_data
+  for (i in 1:nrow(nodepair_data)) {
+    from_marker <- nodepair_data$From[i] # Get entry in "From" column (marker)
+    to_trait <- nodepair_data$To[i] # Get entry in "To" column (trait)
+    
+    # Check and see if both marker and trait are in a dataframe
+    if (from_marker %in% colnames(df) && to_trait %in% colnames(df)) {
+      #rel_cols <- c(rel_cols, from_marker, to_trait)
+      # Extract the relevant columns
+      rel_data <- df[, c("Genotype", from_marker, to_trait), drop = FALSE]
+      # Store data frames in a list w/ unique name for identify the pair
+      rel_dataframes[[paste(from_marker, "_", to_trait, sep = "")]] <- rel_data
+    }
+  }
+  #return(df[, rel_cols, drop = FALSE])
+  return(rel_dataframes)
+}
+
+
+Data_wMarkers_new <- rel_variables(Data_wMarkers, nodepair_data)
+#Flood_wMarkers_new <- na.omit(Flood_wMarkers_new)
+
+# Example : lmnt_Flood <- subset(Flood_wMarkers_new$S3_14384898_Sr, S3_14384898 == "0")
+# Need to separate the TIL population based on marker entry (LMNT or TQNG)
+seperate_tils <- function(df) {
+  marker_col <- colnames(df)[2] # Extract marker column
+  
+  # Split the data frame into lists based on marker value
+  split_list <- lapply(marker_col, function(marker_col) {
+    list(
+      lemont = df[df[[marker_col]] == 0, , drop = FALSE],
+      teqing = df[df[[marker_col]] == 1, , drop = FALSE]
+    )
+  })
+  return(split_list)
+}
+
+Data_wMarker_split <- lapply(Data_wMarkers_new, seperate_tils)
+
+lmnt_popsize = list()
+
+
+# Calculate the mean difference between the two groups
+mean_difference <- function(split_data) {
+  # Calculate mean difference for the pairs in the LMNT and TQNG groups
+  difference_list <- lapply(split_data, function(pair_data) {
+    lmnt_avg <- colMeans(pair_data$lemont[, -1], na.rm = TRUE)
+    tqng_avg <- colMeans(pair_data$teqing[, -1], na.rm = TRUE)
+    difference <- lmnt_avg - tqng_avg
+    return(difference)
+  })
+  return(difference_list)
+}
+
+difference_data <- lapply(Data_wMarker_split, mean_difference)
+###############################################################################
+
+# Set the number of colors based number of observed strengths
+arc_colors <- rep(NA, nrow(nodeList))
+
+for(i in 1:nrow(nodeList)) {
+  arc_from <- nodeList$From[i]
+  arc_to <- nodeList$To[i]
+  
+  if (arc_from %in% traits && arc_to %in% traits){
+    correlation_value <- trait_correlations[arc_from, arc_to]
+    #normalized_value <- (correlation_value +1) / 2
+    if(correlation_value > 0){
+      arc_colors[i] <- positive_palette[ceiling(correlation_value * 100)]
+    } else if (correlation_value < 0){
+      arc_colors[i] <- negative_palette[ceiling(-correlation_value * 100)]
+    } else {
+      arc_colors[i] <- "white"
+    }
+    #arc_colors[i] <- palette[ceiling(normalized_value * 100)]
+  }
+  
+  if (arc_from %in% Markers && arc_to %in% traits){
+    df_name <- paste(arc_from, arc_to, sep = "_")
+    df_rel <- get(df_name, difference_data)
+    df_value <- df_rel[[1]][[2]]
+    nodeList[i, ][3] <- df_value
+    if (df_value > 0) {
+      arc_colors[i] <- lemont_palette
+    } else if (df_value < 0) {
+      arc_colors[i] <- teqing_palette
+    } else {
+      arc_colors[i] <- "black"
+    }
+  }
+}
+
+# Add the colors to the DAG
+##
+for(i in 1:nrow(strength2)) {
+  arc_from <- nodeList$From[i]
+  arc_to <- nodeList$To[i]
+  arc_name <- as.character(interaction(arc_from, arc_to, sep = "~"))
+  edgeRenderInfo(gR)$col[arc_name] <- arc_colors[i]
+}
+
+nodeRenderInfo(gR)$fill = "lightblue"
+nodeRenderInfo(gR)$col = "darkblue"
+nodeRenderInfo(gR)$fill[Markers] = "orchid1" # For markers 
+nodeRenderInfo(gR)$col[traits] = "black"
+
+for (i in 1:length(tiercolors)) {
+  nodeRenderInfo(gR)$fill[traittiers[[i]]] = tiercolors[i]
+}
+# nodeRenderInfo(gR)$width <- 40
+# nodeRenderInfo(gR)$height <- 40
+# nodeRenderInfo(gR)$fontsize <- 25
+
+a = arcs(bnlearn::subgraph(averaged2, relevant.nodes))
+#a = as.character(interaction(a[, "from"], a[, "to"], sep = "~"))
+
+
+renderGraph(gR)
+dev.off()
+
+# To see the black list that was applied
+#write.csv(blacklisted, "C:/Users/jared.richardson/Desktop/USDASummer/R_Scripts/Bayesian Models/fourStudy_blacklisttable_Flood_09-12.csv")
+
+# See the relevant node list w/ calculated color values
+write.csv(nodeList, file = nodeListFile, row.names = FALSE)
 
 ## Lets try to store dropped or unused markers (unused as a way to classify markers dropped AFTER deup)
 if (useMarkers == TRUE) {
@@ -394,22 +580,20 @@ if (useMarkers == TRUE) {
   write.csv(unused_markers_df, unusedMarkerFile, row.names = FALSE)
 }
 
-# library(ltm)
-# cor_matrix <- matrix(NA, nrow = length(Markers), ncol = length(traits))
-# rownames(cor_matrix) <- Markers
-# colnames(cor_matrix) <- traits
-# 
-# for (i in seq_along(Markers)) {
-#   for (j in seq_along(traits)) {
-#     #cor_matrix[marker, trait] <- polycor::biseral.cor(inputdata[[marker]], inputdata[[traits]])
-#     cor_matrix[i, j] <- biserial.cor(inputdata[[traits[j]]], inputdata[[Markers[i]]])
-#   }
-# }
 
-# To be added...First attempt at marginal graphs
-# library(gRain)
-# fitted_network <- pr001[[1]]$models[[1]]
-# graphviz.chart(fitted_network, node = "LfNu")
-# tiff(outTiffFile, height = 50, width = 50, units = 'cm', compression = 'lzw', res = 1080)
+flatlist <- unlist(Data_wMarker_split, recursive = FALSE)
 
-write.csv(inputdata, "inputdata_Flood.csv")
+df_name <- c("lemont", "teqing")
+num_rows <- sapply(flatlist, function(element) {
+  sapply(df_name, function(df_name) {
+    nrow(element[[df_name]])
+  })
+})
+
+write.csv(num_rows, file = PopSizeFile)
+
+cpdag <- cpdag(averaged2)
+graphviz.plot(cpdag)
+
+fitted_model <- bn.fit(averaged2, nodeList)
+cpdag_result <- cpquery(averaged2, event = (S1_14377658_Sr == 0), evidence = NULL)
